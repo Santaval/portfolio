@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     url: DATA.url,
     siteName: `${DATA.name}`,
     locale: "en_US",
-    type: "website",
+    type: "website"
   },
   robots: {
     index: true,
