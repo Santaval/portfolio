@@ -71,4 +71,24 @@ export default function DeleteAccount() {
       <div style={{ marginTop: "40px", textAlign: "center" }}>
         <a 
           href={`mailto:${adminEmail}?subject=${encodeURIComponent("Account Deletion")}`}
-          style
+          style={{
+            display: "inline-block",
+            backgroundColor: "#d32f2f",
+            color: "white",
+            padding: "12px 24px",
+            borderRadius: "6px",
+            textDecoration: "none",
+            fontWeight: "bold",
+            fontSize: "16px"
+          }}
+        >
+          Send Deletion Email Now
+        </a>
+      </div>
+
+      <p style={{ marginTop: "30px", fontSize: "14px", color: "#888", textAlign: "center" }}>
+        Requests are typically processed within 5 business days. You will receive a confirmation email once your data has been purged.
+      </p>
+    </div>
+  );
+}
