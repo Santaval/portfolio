@@ -41,11 +41,12 @@ export async function markdownToHTML(markdown: string) {
 export async function getPost(slug: string) {
   const filePath = path.join("content", `${slug}.mdx`);
   let source = fs.readFileSync(filePath, "utf-8");
-  const { content: rawContent, data: metadata } = matter(source);
-  const content = await markdownToHTML(rawContent);
+  // Se devuelve el MDX crudo: lo compila <MDXRemote> en la página, que es la
+  // única forma de que un post pueda embeber componentes React.
+  const { content, data: metadata } = matter(source);
   return {
     source: content,
-    metadata,
+    metadata: metadata as Metadata,
     slug,
   };
 }

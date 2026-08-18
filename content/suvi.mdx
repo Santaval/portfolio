@@ -1,0 +1,390 @@
+---
+title: "Y cómo guardamos las imágenes de la SUVI sin que pete el Centro de Informática"
+publishedAt: "2026-08-14"
+summary: "He aquí mi propuesta para un motor de compresión por diferencias (Delta Encoding) y depreciación de ruido que, en teoría, podría llegar a reducir un 80%-95% el uso de almacenamiento"
+image: "/blog/suvi-compression-diagram.png"
+---
+
+- **Proyecto:** Visualizador y Archivo de Datos Solares en Tiempo Real
+- **Autor:** Savaldev / Equipo de Desarrollo
+- **Estado:** Propuesta Técnica / Fase de Diseño
+
+## 1. Resumen
+
+El problema que tenemos hoy es encontrar una manera de procesar, comprimir y almacenar imágenes SUVI sin que pete el almacenamiento. Las secuencias de imágenes generadas por SUVI (Solar Ultraviolet Imager) a bordo de los satélites GOES nos traen este interesante (cof cof) reto.
+
+Se generan un montón de datos a cada rato ($1280 \times 1280$ píxeles en 6 longitudes de onda), almacenar esto en formato FITS es una locura, caro e ineficiente tanto para almacenamiento a largo plazo como para visualización a lo largo del tiempo.
+
+Mi propuesta es una pequeña arquitectura que extraiga los metadatos en una base de datos relacional y procese la matriz de píxeles mediante un motor de Delta Encoding, reduciendo también el ruido generado por interferencias, etc.
+
+Ahora, antes de meternos en fórmulas, vamos por partes, porque la gracia de esto no es el algoritmo: es entender **por qué** hace falta.
+
+## 2. Un momento, ¿qué es la SUVI y por qué genera tanto?
+
+La SUVI es básicamente un telescopio ultravioleta pegado a un satélite meteorológico que vive en órbita geoestacionaria. No apunta a la Tierra: apunta al Sol, todo el día, todos los días, sin parpadear. Y saca fotos en **seis longitudes de onda distintas** (94, 131, 171, 195, 284 y 304 Å), porque cada una te muestra una capa diferente de la atmósfera solar. Con 171 Å ves la corona tranquila; con 94 Å ves el plasma calientísimo de una llamarada. Son seis fotos del mismo objeto que cuentan seis historias distintas.
+
+Cada foto son $1280 \times 1280$ píxeles y —acá está el detalle— cada píxel no es un byte, son **16 bits**. Un instrumento científico no puede darse el lujo de los 256 nivelitos de una imagen normal: necesita medir intensidad real, y para eso hacen falta 65 536 niveles. Multiplicá:
+
+$$
+1280 \times 1280 \times 2\ \text{bytes} \approx 3.3\ \text{MB por toma}
+$$
+
+Y eso antes de sumarle el header FITS y las extensiones de calibración, que nos dejan entre 3.2 MB y 6.5 MB por archivo si lo guardás expandido. En la práctica la NOAA los sirve con compresión Rice interna, así que lo que uno descarga anda por los **2 MB por toma**. Seis canales, uno cada dos minutos y medio, todos los días del año. Jugá con la calculadora un toque:
+
+<StorageCalculator />
+
+Ahí está el problema en una barra roja. **~2.36 TB al año** de puro archivo crudo con los valores por defecto —y si en vez de dejarlo comprimido a la Rice lo guardás expandido a 16 bits, subí el control de "peso por toma" y mirá cómo se va tranquilamente a más del doble. Y sí, ya sé lo que estás pensando: "2 TB es un disco duro de 40 mil colones". El asunto es que esto no es un disco duro en tu escritorio: es almacenamiento redundante, respaldado, servido por red y consultado por usuarios que quieren arrastrar una barra de tiempo y ver tres meses de Sol en diez segundos. No somos Google. Ese terabyte cuesta, y cuesta todos los meses.
+
+<Aside title="¿Y por qué FITS y no un PNG y ya?">
+FITS es el formato estándar en astronomía desde 1981 y no lo usan por nostalgia: guarda los píxeles **sin pérdida** y arrastra un header de texto con todo lo necesario para reproducir la observación (apuntado, exposición, calibración, radio solar en píxeles, timestamp). Un PNG te bota toda esa información y te tira el rango dinámico a la basura. FITS no es el enemigo: es la fuente de verdad. El problema es usarlo también como formato de **servido**.
+</Aside>
+
+## 3. El mehoyo del asunto y Desafíos Técnicos
+
+- **Alto Volumen de Datos:** Cada toma FITS de 16-bit pesa entre 3.2 MB y 6.5 MB. A una cadencia típica de 6 canales cada 2.5 minutos, el almacenamiento bruto alcanza aproximadamente 2.36 TB al año (pareciera poco pero no somos Google).
+- **Redundancia Temporal Eleva el Costo:** Entre fotos consecutivas (intervalos de 2–4 min), más del 90% del disco solar y del espacio circundante permanece prácticamente idéntico.
+- **Ruido Estocástico del Sensor:** El ruido térmico del CCD/CMOS y los rayos cósmicos hacen que los píxeles varíen numéricamente aunque la estructura solar no haya cambiado, lo que degrada la eficiencia de los algoritmos de compresión sin pérdida genéricos (ZIP, GZIP).
+- **Acceso Aleatorio y Streaming:** Para un visualizador web o cliente de escritorio, descomprimir un archivo completo de 1 año para mostrar un cuadro específico genera una latencia que vuelve al sistema más lento que esperar que te atiendan en el banco.
+
+De los cuatro, el que más gente subestima es el tercero, así que vale la pena detenerse. Un compresor sin pérdida como gzip funciona buscando **repetición**: si ve la misma secuencia de bytes otra vez, la reemplaza por una referencia corta ("esto ya lo dije 300 bytes atrás"). Es buenísimo cuando hay patrones. Pero el ruido térmico es, por definición, lo contrario de un patrón: es un numerito aleatorio sumado a cada píxel, distinto en cada toma. Dos zonas de espacio vacío que deberían ser idénticas terminan siendo `0,1,0,2,1,0` y `1,0,2,0,0,1`. Para vos y para mí eso es "negro" las dos veces. Para gzip son dos secuencias diferentes, y no puede reutilizar ninguna.
+
+<Quiz
+  question="Entonces, ¿por qué gzip comprime peor una imagen con ruido que la misma imagen sin ruido?"
+  options={[
+    {
+      text: "Porque el ruido hace que el archivo pese más antes de comprimir.",
+      why: "No: el archivo pesa exactamente lo mismo, son los mismos píxeles con o sin ruido. Lo que cambia es qué tan predecible es su contenido.",
+    },
+    {
+      text: "Porque el ruido rompe la repetición de secuencias, que es de lo que vive el algoritmo.",
+      correct: true,
+      why: "Exacto. gzip (LZ77 + Huffman) reemplaza secuencias repetidas por referencias. El ruido vuelve casi única cada secuencia, así que casi no hay nada que referenciar y el compresor termina copiando datos tal cual.",
+    },
+    {
+      text: "Porque gzip solo funciona bien con texto.",
+      why: "No, gzip es agnóstico al tipo de dato: comprime bien cualquier cosa con estructura repetitiva, incluidas imágenes. El problema no es que sean píxeles, es que son píxeles impredecibles.",
+    },
+  ]}
+/>
+
+Guardá esa idea, porque el truco central de todo el motor va a ser justamente **quitarle el ruido a la ecuación antes de comprimir**.
+
+## 4. Arquitectura del Sistema
+
+La decisión de arquitectura más importante se toma antes de comprimir nada: **partir cada archivo FITS en dos flujos que no se parecen en nada**.
+
+![Arquitectura del ingestor: el FITS se parte en metadatos hacia PostgreSQL e InfluxDB, y en matriz de píxeles hacia el motor de compresión que escribe bloques .sublk](/blog/suvi-compression-diagram.png)
+
+¿Por qué separarlos? Porque los metadatos y los píxeles se **usan** de forma completamente distinta:
+
+- Los **metadatos** (fecha, canal, exposición, radio solar, calidad de la toma) son chiquitos, pero se consultan todo el tiempo y de mil formas: "dame todas las tomas de 171 Å del 3 de marzo entre las 2 y las 5". Eso es un trabajo de base de datos, con índices.
+- La **matriz de píxeles** es enorme pero nadie la "consulta": se pide entera o no se pide. Meter 3 MB de binario dentro de una fila de Postgres es castigar a la base de datos con algo que no sabe hacer.
+
+Si los mezclás, terminás con una base gigante y lenta donde cada búsqueda arrastra megas de píxeles que nadie pidió. Separados, la base pesa unos pocos GB y responde en milisegundos, y los píxeles viven en archivos planos que se leen por offset.
+
+**El ingestor va en C++** por una razón bien poco glamorosa: es el único proceso que toca *todos* los bytes de *todos* los archivos. Decodificar FITS, aplicar máscara, restar matrices y llamar a zstd sobre 1.5 millones de píxeles × 6 canales cada dos minutos y medio es exactamente el tipo de trabajo donde el intérprete de Python se convierte en el cuello de botella. Acá se manda memoria contigua a la caché del procesador y se acabó.
+
+**Y usamos las dos bases de datos**, que sé que suena a sobreingeniería hasta que ves para qué sirve cada una:
+
+- **PostgreSQL** es el catálogo: qué tomas existen, en qué bloque `.sublk` vive cada una, en qué offset, con qué keyframe se reconstruye. Es información relacional, con llaves foráneas y consultas por rango. Postgres nació para eso.
+- **InfluxDB** guarda las **series temporales derivadas**: intensidad media del disco, conteo de píxeles saturados, temperatura del sensor, un valor por toma por canal. Eso no es un catálogo, es una señal continua en el tiempo, y las preguntas que se le hacen son de otro tipo ("promedio móvil de 7 días de intensidad en 94 Å"). Una base de series temporales hace eso con downsampling y retención automática; en Postgres sería una tabla de decenas de millones de filas y una consulta que da pena.
+
+<Aside title="Regla de oro que me ha salvado varias veces" tone="warn">
+No metas blobs binarios grandes en la base de datos. Guardá en la base **dónde está** el binario (archivo + offset + tamaño), y el binario en el sistema de archivos o en un bucket. La base se mantiene chiquita y rápida; los archivos se sirven con `sendfile` o directo desde un CDN.
+</Aside>
+
+## 5. Descomposición y Modelo de Datos
+
+### 5.1. Base de Datos Relacional (Metadatos)
+
+Los metadatos astronómicos y fotométricos se indexan en PostgreSQL para permitir consultas temporales instantáneas. La tabla mínima viable se ve más o menos así:
+
+```sql
+CREATE TABLE suvi_frames (
+    id              BIGSERIAL PRIMARY KEY,
+    observed_at     TIMESTAMPTZ NOT NULL,   -- DATE-OBS del header FITS
+    wavelength      SMALLINT    NOT NULL,   -- 94, 131, 171, 195, 284, 304
+    exposure_time   REAL        NOT NULL,   -- segundos
+    sun_center_x    REAL        NOT NULL,   -- CRPIX1
+    sun_center_y    REAL        NOT NULL,   -- CRPIX2
+    sun_radius_px   REAL        NOT NULL,   -- R_sun en píxeles, para la máscara
+    quality_flag    SMALLINT    NOT NULL DEFAULT 0,
+
+    -- Puntero al píxel: acá está el truco
+    block_file      TEXT        NOT NULL,   -- p.ej. '2026/08/171_0042.sublk'
+    block_offset    BIGINT      NOT NULL,   -- byte donde empieza el chunk
+    block_size      INTEGER     NOT NULL,   -- bytes comprimidos
+    is_keyframe     BOOLEAN     NOT NULL,
+    keyframe_id     BIGINT      REFERENCES suvi_frames(id),  -- su I₀
+
+    raw_header      JSONB                   -- el header FITS completo, por si acaso
+);
+
+CREATE INDEX idx_frames_time_wl ON suvi_frames (wavelength, observed_at DESC);
+```
+
+Dos detalles que valen más de lo que parecen:
+
+1. **`raw_header JSONB`.** Guardamos el header FITS entero aunque ya hayamos extraído las columnas importantes. Pesa poco (unos KB) y el día que alguien pregunte por un campo que no habíamos previsto, la respuesta está ahí en vez de haber que reprocesar el archivo original.
+2. **`keyframe_id` apuntando a la misma tabla.** Cada fotograma sabe cuál es su imagen de referencia. Reconstruir es entonces: una consulta, dos lecturas, una suma. Sin escanear nada.
+
+### 5.2. El archivo de bloques (`.sublk`)
+
+Los píxeles ya comprimidos se agrupan en archivos de bloques, uno por canal y por segmento de tiempo. La estructura es a propósito aburrida:
+
+```text
+┌──────────────────────────────────────────────┐
+│ HEADER (64 bytes)                            │
+│  magic "SUBLK\0" | versión | canal | modo    │
+│  keyframe_interval | quantization | epsilon  │
+├──────────────────────────────────────────────┤
+│ ÍNDICE (N × 24 bytes)                        │
+│  [timestamp | offset | size | flags] × N     │
+├──────────────────────────────────────────────┤
+│ PAYLOAD                                      │
+│  chunk₀ (keyframe, zstd)                     │
+│  chunk₁ (delta, zstd)                        │
+│  chunk₂ (delta, zstd)  ...                   │
+└──────────────────────────────────────────────┘
+```
+
+¿Por qué repetir el índice acá si ya está en Postgres? Por **autonomía**. Un `.sublk` tiene que poder leerse sin base de datos: para depurar, para migrar, para copiarlo a otra máquina, o para el día (que siempre llega) en que la base y los archivos se desincronizan. Un archivo que se explica solo vale oro. Y los parámetros con los que fue codificado van en el header porque si mañana cambiamos `epsilon`, los bloques viejos tienen que seguir siendo descifrables con los suyos.
+
+## 6. Diseño del Motor de Compresión Personalizado
+
+Acá es donde ocurre la magia. Si observamos las imágenes que nos da la SUVI, entre una y otra no hay gran cambio. Si guardamos las imágenes completas cada 5 min vamos a estar guardando información redundante. ¿Y si simplemente guardamos lo que cambió? La idea en el papel es simple: tomar una foto base cada x tiempo, llamemos a ese intervalo `keyframe_interval` o $I$; entonces esa primera foto va a ser $I_0$. Para $I_1$ no vamos a guardar la foto completa, sino que vamos a recorrer la matriz de $I_0$ y ver qué cambió, y solo guardamos esos cambios. Y así sucesivamente para $I_2$, $I_3$, etc.
+
+Si esto te suena, es porque es exactamente lo que hace el video desde hace décadas: los *I-frames* son fotos completas y los *P-frames* solo guardan la diferencia con el anterior. Netflix no te manda 24 fotos por segundo; te manda una foto y 23 chismes sobre qué cambió. Nosotros vamos a hacer lo mismo, pero con el Sol y sin la parte de la estimación de movimiento.
+
+Con lo anterior tenemos 2 formas de hacerlo:
+
+1. Que $I_n$ se base siempre en $I_0$ (**ABSOLUTE**)
+2. Que $I_n$ se base en $I_{n-1}$ (**CUMULATIVE**)
+
+Cada una de estas opciones tiene sus pros y contras, los cuales detallaremos en la sección 7.
+
+Pero antes de las fórmulas, jugá con esto. Son dos tomas del mismo Sol separadas por cuatro minutos, y a la derecha está el delta, o sea **lo único que llegaría a escribirse en disco**:
+
+<DeltaLab />
+
+Si moviste el `noise_threshold` a 0% ya viste el punto de todo el post: el delta no está vacío, está **hormigueando entero**. El Sol no se movió, pero el sensor sí hizo ruido, y ese hormigueo es lo que le estaríamos pidiendo a zstd que comprima. Subilo a 2% y la imagen se apaga casi por completo, menos las dos manchitas donde de verdad pasó algo. Ese "casi por completo" es el 90% de ahorro.
+
+### 6.1. Etapas de Procesamiento por Imagen
+
+**1. Solar Masking:**
+
+No todo lo que aparece en la imagen es el Sol mismo: hay parte de la imagen que es el "fondo" y que siempre es negro. ¿Por qué guardar eso? Solo mapeamos el radio del Sol de esta manera:
+
+$$
+M(x, y) = \begin{cases} 1 & \text{si } \sqrt{(x-x_0)^2 + (y-y_0)^2} \le 1.25 \cdot R_{sun} \\ 0 & \text{en otro caso} \end{cases}
+$$
+
+Fuerza a $0$ absoluto todo el espacio profundo fuera de la corona solar. Fijate en el $1.25$: no recortamos justo en el borde del disco, dejamos un 25% de margen. Ahí vive la corona, que es tenue pero **es ciencia**, no es fondo. Recortar al $1.0$ sería más eficiente y también sería vandalismo.
+
+<Aside title="Esto sigue sin resolverse" tone="warn">
+Puede que haya una llamarada o cosas que salgan del radio del Sol; aún no se han resuelto esos casos. Como primera opción se puede manejar un radio de tolerancia, pero una eyección de masa coronal puede extenderse varios radios solares y la máscara se la comería sin avisar. La idea que más me convence hoy: calcular la energía total fuera de la máscara antes de aplicarla y, si supera un umbral, marcar el fotograma y guardarlo sin máscara. Cuesta una pasada extra por la imagen y evita perder justo el evento que a todo el mundo le importa.
+</Aside>
+
+**2. Cuantización de Rango Dinámico:**
+
+- **Modo Científico:** Conversión a INT16 preservando la calibración.
+- **Modo Web / Visualización:** Escala logarítmica mapeada a UINT8 ($0 \dots 255$):
+
+$$
+I_{quant} = \left\lfloor \frac{\ln(1 + I_{raw})}{\max(\ln(1 + I_{raw}))} \times 255 \right\rfloor
+$$
+
+¿Por qué **logarítmica** y no una regla de tres simple? Porque el rango dinámico del Sol es una barbaridad: entre la corona tranquila y el núcleo de una llamarada hay tres o cuatro órdenes de magnitud. Si escalás linealmente a 8 bits, la llamarada se lleva todos los niveles y absolutamente todo lo demás cae en los primeros dos o tres valores: te queda un disco negro con un punto blanco. El logaritmo comprime los brillos extremos y le devuelve resolución a la parte tenue, que es donde está la estructura que se quiere ver. Además, así es como funciona nuestra propia percepción del brillo, así que la imagen resultante se ve *natural*.
+
+Ojo con lo obvio: este paso **es con pérdida**. Por eso existen los dos modos. El archivo científico jamás pasa por acá.
+
+**3. Cálculo de Diferencia (Delta Encoding):**
+
+$$
+\Delta_t = I_t - I_{\text{ref}}
+$$
+
+(Donde $I_{\text{ref}} = I_0$ en modo ABSOLUTE o $I_{ref} = I_{t-1}$ en modo CUMULATIVE.)
+
+Notá que el delta se calcula **después** de cuantizar, no antes. Si lo hicieras al revés, restarías flotantes y luego cuantizarías la resta, y los errorcitos de redondeo se irían acumulando fotograma tras fotograma hasta que la imagen reconstruida no coincida con nada. Restando enteros ya cuantizados, la suma en la reconstrucción devuelve exactamente el mismo entero. Aritmética de enteros, cero sorpresas.
+
+**4. Filtrado de Ruido (Noise Gate):**
+
+$$
+\Delta_t'(x, y) = \begin{cases} 0 & \text{si } \vert{}\Delta_t(x, y)\vert{} < \epsilon \cdot \text{RangoMax} \\ \Delta_t(x, y) & \text{en otro caso} \end{cases}
+$$
+
+Elimina variaciones insignificantes para maximizar la cantidad de ceros continuos en la matriz. Es el paso más simple de todos —un `if`— y el que más ahorro genera, porque no le está quitando trabajo al compresor: le está **cambiando el material**. Pasa de un mar de numeritos aleatorios distintos a un mar de ceros idénticos, y los ceros idénticos son literalmente el caso ideal de cualquier compresor del planeta.
+
+El precio es real y hay que decirlo: esto es **con pérdida**. Un cambio genuino pero suave —el brillo de la corona subiendo un 1% de forma pareja— cae bajo el umbral y se pierde. Por eso el perfil científico usa $\epsilon = 0$ y se conforma con menos ahorro.
+
+**5. Compresión Entrópica Final:**
+
+La matriz dispersa resultante $\Delta_t'$ se comprime mediante Zstandard (zstd), aprovechando secuencias repetitivas de bytes mediante compresión LZ77 + entropía.
+
+<Detalle title="¿Y por qué zstd y no gzip, que ya está en todas partes?">
+Por tres razones, en orden de importancia para este caso:
+
+**1. Velocidad de descompresión.** zstd descomprime en el orden de 1–2 GB/s, contra unos 200–400 MB/s de gzip. Como cada fotograma que el usuario ve exige descomprimir al menos dos bloques, ese número es directamente la latencia de la barra de tiempo del visualizador.
+
+**2. Mejor ratio al mismo costo.** zstd usa FSE (Finite State Entropy, un primo de la codificación aritmética) en vez del Huffman de gzip. Huffman está obligado a gastar un número entero de bits por símbolo; FSE puede gastar fracciones. Cuando el 95% de tus símbolos son el mismo cero, esa diferencia entre "1 bit mínimo" y "0.07 bits" es enorme.
+
+**3. Diccionarios entrenados.** zstd permite entrenar un diccionario con muestras reales y despacharlo aparte. Como todos nuestros deltas se parecen entre sí, un diccionario entrenado con un día de datos mejora bastante los bloques chiquitos, donde gzip ni siquiera alcanza a construir su tabla.
+
+Lo único que gzip tiene a favor es que lo descomprime hasta el navegador de tu tía. Pero como acá el cliente es nuestro, no nos importa.
+</Detalle>
+
+## 7. ABSOLUTE vs CUMULATIVE: la promesa pendiente
+
+Esta es la decisión que más cambia el comportamiento del sistema, así que veámosla funcionando. Elegí un fotograma como si estuvieras arrastrando la barra de tiempo del visualizador:
+
+<DeltaModeComparator />
+
+Puesto en tabla:
+
+| | ABSOLUTE ($\Delta_t = I_t - I_0$) | CUMULATIVE ($\Delta_t = I_t - I_{t-1}$) |
+| --- | --- | --- |
+| **Costo de reconstrucción** | $O(1)$: keyframe + 1 bloque | $O(t)$: keyframe + todos los intermedios |
+| **Tamaño del delta** | Crece conforme te alejás de $I_0$ | Mínimo y estable |
+| **Corrupción de un bloque** | Afecta solo a ese fotograma | Envenena todos los siguientes |
+| **Ideal para** | Time-scrubbing, acceso aleatorio | Streaming secuencial, archivo frío |
+
+La intuición: en ABSOLUTE cada delta carga con **todo** lo que pasó desde el keyframe, así que el fotograma 30 guarda media hora de cambios acumulados. En CUMULATIVE cada delta carga solo con dos minutos y medio de cambios, o sea casi nada... pero para llegar al fotograma 30 hay que sumar los 30 en fila.
+
+Y hay una trampa extra en CUMULATIVE que no se ve en la tabla: con el noise gate activo, los errorcitos que el gate descarta **se van acumulando**. Cada fotograma tira un poquito de señal real bajo el umbral, y como el siguiente se calcula contra ese resultado ya degradado, a los 200 fotogramas la imagen empezó a derivar (*drift*). ABSOLUTE no tiene ese problema: siempre se mide contra el keyframe original, así que el error nunca se compone.
+
+<Quiz
+  question="Tu visualizador tiene una barra de tiempo que el usuario arrastra a lo loco. ¿Qué modo elegís y por qué?"
+  options={[
+    {
+      text: "CUMULATIVE, porque los deltas son más chiquitos y baja el uso de disco.",
+      why: "Los deltas son más chiquitos, cierto, pero saltar al fotograma 300 obligaría a leer y sumar 300 bloques. El usuario suelta el mouse y se va a hacer café. Optimizaste el recurso equivocado.",
+    },
+    {
+      text: "ABSOLUTE, porque cualquier fotograma cuesta lo mismo: dos lecturas.",
+      correct: true,
+      why: "Eso es. En acceso aleatorio la latencia manda sobre el tamaño, y el costo constante es lo que hace que arrastrar la barra se sienta instantáneo. Se paga con deltas un poco más gordos, y se compensa bajando el keyframe_interval.",
+    },
+    {
+      text: "Da igual, la diferencia es de milisegundos.",
+      why: "No da igual: es la diferencia entre 2 lecturas y N lecturas, y cada lectura implica I/O más una descompresión de la matriz completa. A 300 fotogramas eso son segundos, no milisegundos.",
+    },
+  ]}
+/>
+
+<Aside title="El keyframe_interval es el dial que equilibra todo">
+Bajarlo (keyframes más seguidos) achica los deltas en ABSOLUTE y limita el drift en CUMULATIVE, pero mete más fotos completas y por lo tanto más bytes. Subirlo ahorra keyframes pero engorda todo lo demás. No hay un valor correcto universal: depende de qué tan activo esté el Sol. En máximo solar, con llamaradas cada rato, conviene bajarlo.
+</Aside>
+
+## 8. Variables de Configuración y Perfiles de Operación
+
+El motor permite ajustar los siguientes parámetros de experimentación:
+
+| Parámetro | Rango / Opciones | Descripción |
+| --------- | ---------------- | ----------- |
+| `keyframe_interval` ($N$) | $10 \dots 360$ frames | Frecuencia de inyección de imagen completa ($I_0$). |
+| `delta_mode` | `ABSOLUTE`, `CUMULATIVE` | Determina la dependencia entre cuadros intermediarios. |
+| `noise_threshold` ($\epsilon$) | $0.00 \dots 0.05$ ($0\% - 5\%$) | Umbral de tolerancia de ruido por píxel. |
+| `quantization` | `FLOAT32`, `INT16`, `UINT8` | Precisión de representación numérica. |
+| `apply_mask` | `True` / `False` | Habilita el truncamiento a cero del espacio exterior. |
+
+**Perfiles Sugeridos**
+
+- **Perfil A — Retención Científica (Alta Fidelidad):** `quantization: INT16 | noise_threshold: 0.0 | apply_mask: False | keyframe_interval: 15`
+  - Ahorro estimado: ~70% – 80% respecto a FITS.
+  - Sin pérdida de verdad: sin gate, sin máscara, sin cuantización destructiva. Todo el ahorro sale de la redundancia temporal, que es información que efectivamente no aporta nada.
+- **Perfil B — Visualizador Web en Tiempo Real (Ultra Ligero):** `quantization: UINT8 | noise_threshold: 0.02 (2%) | apply_mask: True | keyframe_interval: 30`
+  - Ahorro estimado: ~92% – 97% respecto a FITS.
+  - Con pérdida y a mucha honra: el destino es una pantalla, y una pantalla muestra 8 bits. Guardar 16 para tirar la mitad al renderizar sería pagar el doble por nada.
+
+La clave es que **los dos perfiles conviven**. Se ingesta una vez y se escriben dos juegos de bloques: el pesado para quien hace ciencia, el liviano para quien mira. Sumados siguen siendo una fracción del FITS original.
+
+<Quiz
+  question="Un investigador necesita medir la intensidad absoluta de una llamarada para publicar. ¿Qué perfil le servís?"
+  options={[
+    {
+      text: "Perfil B, que es más liviano y carga más rápido.",
+      why: "Perfil B pasó por cuantización logarítmica a 8 bits: los valores ya no son intensidades calibradas, son niveles de brillo para pantalla. Con eso no se publica nada.",
+    },
+    {
+      text: "Perfil A, porque conserva INT16 y la calibración intacta.",
+      correct: true,
+      why: "Correcto. Sin gate, sin máscara y sin cuantización destructiva, cada píxel sigue siendo el mismo entero que mandó el satélite. El único ahorro viene de no repetir información redundante, y eso no altera ni un valor.",
+    },
+    {
+      text: "Cualquiera de los dos, total el delta se reconstruye igual.",
+      why: "El delta se reconstruye igual, sí, pero reconstruye lo que se guardó. Si lo que se guardó ya venía cuantizado con pérdida, la reconstrucción es perfectamente fiel... al dato degradado.",
+    },
+  ]}
+/>
+
+## 9. Reconstrucción y Reproducción
+
+Para reconstruir un fotograma $I_t$ en el cliente o servidor:
+
+1. Se consulta la base de datos para obtener el registro correspondiente a $t$ y ubicar la referencia de su keyframe ($I_0$).
+
+**2. Modo ABSOLUTE:**
+
+$$
+I_t = I_0 + \text{DecompressZSTD}(\Delta_t)
+$$
+
+**3. Modo CUMULATIVE:**
+
+$$
+I_t = I_0 + \sum_{k=1}^{t} \text{DecompressZSTD}(\Delta_k)
+$$
+
+En código, el decodificador de ABSOLUTE es casi decepcionante de lo corto que es:
+
+```python
+import numpy as np
+import zstandard as zstd
+
+dctx = zstd.ZstdDecompressor()
+
+def leer_chunk(block_file, offset, size, shape, dtype):
+    with open(block_file, "rb") as f:
+        f.seek(offset)                       # acá está el acceso aleatorio
+        crudo = dctx.decompress(f.read(size))
+    return np.frombuffer(crudo, dtype=dtype).reshape(shape)
+
+def reconstruir(frame, keyframe, shape=(1280, 1280)):
+    # El keyframe se guarda tal cual; el delta va con signo
+    i0 = leer_chunk(keyframe.block_file, keyframe.block_offset,
+                    keyframe.block_size, shape, np.uint16)
+    d  = leer_chunk(frame.block_file, frame.block_offset,
+                    frame.block_size, shape, np.int16)
+    # int32 en la suma para no desbordar, y de vuelta al rango original
+    return np.clip(i0.astype(np.int32) + d, 0, 65535).astype(np.uint16)
+```
+
+Dos lecturas con `seek`, dos descompresiones y una suma vectorizada. No hay que recorrer el archivo, no hay que descomprimir nada más: por eso el índice del `.sublk` guarda offsets absolutos.
+
+> **Nota de Diseño:** Se prefiere el modo ABSOLUTE para sistemas interactivos con barra de desplazamiento temporal (time-scrubbing), ya que la reconstrucción de cualquier fotograma tiene costo computacional constante $O(1)$ sobre el Keyframe.
+
+## 10. Lo que todavía no cuadra
+
+Esto sigue siendo una propuesta y no producción, así que va la lista honesta de lo que me quita el sueño:
+
+- **Llamaradas fuera de la máscara.** Ya lo mencioné arriba y es el hueco más grande: una eyección de masa coronal puede pasarse del $1.25 R_{sun}$ y la máscara la borraría sin decir agua va. La detección de energía externa antes de enmascarar es la mitigación, pero hay que probarla con eventos reales.
+- **Rotación solar.** El Sol rota (unos 27 días), así que las estructuras se **desplazan** además de cambiar de brillo. Un delta puro ve un desplazamiento como "todo se apagó acá y se prendió allá": el doble de datos. El video resuelve esto con compensación de movimiento; nosotros todavía no. Con la cadencia de 2.5 minutos el corrimiento es de fracciones de píxel y no molesta, pero con `keyframe_interval` alto empieza a pesar.
+- **Drift en CUMULATIVE.** Cuantificar cuánto se degrada realmente una cadena de 300 deltas con gate al 2%. Sospecho que es tolerable para visualización, pero "sospecho" no es un número.
+- **Corrupción del keyframe.** Si se pierde un $I_0$, se pierde el intervalo entero. Hace falta checksum por chunk (zstd ya trae XXH64, hay que activarlo) y probablemente paridad o un keyframe redundante al final del bloque.
+- **Validar los ratios contra datos reales.** Todos los porcentajes de este post son estimaciones sobre el papel. Hasta no correr el prototipo contra un mes de FITS reales de la NOAA, son hipótesis bien peinadas.
+
+## 11. Hoja de Ruta de Implementación
+
+- **Fase 1 (Prototipado del Motor):** Implementación del script en Python con `zstandard` y `numpy` para validar ratios de compresión con muestras de datos FITS reales de la NOAA. Python acá es lo correcto: interesa medir, no correr rápido.
+- **Fase 2 (Esquema de Base de Datos e Ingestor):** Creación del servicio de ingesta continua en C++ que descargue FITS del S3 de NOAA, pueble PostgreSQL e InfluxDB y escriba bloques `.sublk`.
+- **Fase 3 (API de Visualización):** Servidor HTTP / WebSockets que entregue cuadros reconstruidos o fragmentos procesados según demanda.
+- **Fase 4 (Benchmarking y Optimización):** Ajuste de parámetros en entornos de producción según la respuesta del cliente de visualización.
+
+## 12. Cierre
+
+Todo esto se reduce a una idea bastante boba: **casi nada cambia entre una foto y la siguiente, y de lo que cambia, la mayoría es ruido**. Guardar lo que cambió en vez de guardarlo todo, y ser honesto sobre qué diferencias importan y cuáles no, es lo que convierte 2.36 TB al año en algo que cabe cómodo en el presupuesto.
+
+Nada de lo que hay acá es un algoritmo nuevo: el delta encoding es de los 60 y zstd lo escribió gente mucho más lista que yo. Lo único propio es haber mirado bien este dato en particular —un Sol casi quieto, sobre fondo negro, con un sensor que hormiguea— y haber acomodado piezas viejas a su forma. Que suele ser, sospecho, en qué consiste la mayor parte del trabajo.
+
+Falta la parte difícil: bajar los FITS, correr el prototipo y ver si los números aguantan. Cuando lo haga, escribo la segunda parte, y ahí sí con mediciones en vez de estimaciones.

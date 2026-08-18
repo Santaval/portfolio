@@ -142,3 +142,13 @@ code[data-line-numbers-max-digits="2"] > [data-line]::before {
 code[data-line-numbers-max-digits="3"] > [data-line]::before {
   width: 3rem;
 }
+/* Fórmulas: que scrolleen dentro de su caja en vez de romper el layout en móvil */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.35rem 0;
+}
+
+.katex {
+  font-size: 1em;
+}

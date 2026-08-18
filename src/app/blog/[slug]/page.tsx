@@ -1,9 +1,31 @@
+import { mdxComponents } from "@/components/mdx-components";
 import { getBlogPosts, getPost } from "@/data/blog";
 import { DATA } from "@/data/resume";
 import { formatDate } from "@/lib/utils";
 import type { Metadata } from "next";
+import { MDXRemote } from "next-mdx-remote/rsc";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import rehypeKatex from "rehype-katex";
+import rehypePrettyCode from "rehype-pretty-code";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+
+const mdxOptions = {
+  mdxOptions: {
+    remarkPlugins: [remarkGfm, remarkMath],
+    rehypePlugins: [
+      rehypeKatex,
+      [
+        rehypePrettyCode,
+        {
+          theme: { light: "min-light", dark: "min-dark" },
+          keepBackground: false,
+        },
+      ],
+    ],
+  },
+} as const;
 
 export async function generateStaticParams() {
   const posts = await getBlogPosts();
@@ -98,10 +120,13 @@ export default async function Blog({
           </p>
         </Suspense>
       </div>
-      <article
-        className="prose dark:prose-invert"
-        dangerouslySetInnerHTML={{ __html: post.source }}
-      ></article>
+      <article className="prose dark:prose-invert max-w-[650px]">
+        <MDXRemote
+          source={post.source}
+          components={mdxComponents}
+          options={mdxOptions as any}
+        />
+      </article>
     </section>
   );
 }
