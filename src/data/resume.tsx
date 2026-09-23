@@ -8,7 +8,7 @@ export const DATA = {
   location: "San José, CR",
   locationLink: "https://maps.app.goo.gl/b8aC2BnE5NnrYREs9",
   description:
-    "I’m an (almost) Software Engineer who loves turning real problems into real solutions. I enjoy exploring bold ideas, learning new things every day—and yes, I’m a big Formula 1 fan.",
+    "I’m a Fullstack Software Engineer who loves get in trouble (to solve them). I enjoy exploring crazy ideas, learning new things on demand, and yes, I’m a big Formula 1 fan.",
   summary:
     "My journey into tech started back in 2019—yes, during the pandemic—when I was stuck at home with way too much free time. One random YouTube video about building websites popped up, and that was it. Something clicked. I’ve always been self-taught and endlessly curious, so diving into the world of software felt natural. In 2022, I officially began my Software Engineering degree at the University of Costa Rica, where I’m now in my final year. But I never limited myself to what’s taught in the classroom. Along the way, I’ve built freelance projects, developed platforms for research centers at the university, and even created an app for a social impact initiative. Each project has pushed me to grow, explore bold ideas, and build software that actually matters.",
   avatarUrl: "/me.jpeg",
@@ -16,21 +16,15 @@ export const DATA = {
     relevant: [
       "React",
       "Typescript",
-      "TailwindCSS",
       "React Native",
-      'Node.js',
+      'Express',
       ".NET Core",
-      "PHP",
-      "Rest APIs",
       "MySQL",
-      "Redis",
-      "SQL Server",
       "Docker",
       "Github Actions",
       "Clean Architecture",
       "SOLID Principles",
-      "TDD"
-    ],
+     ],
     frontend: [
       "React",
       "Next.js",
@@ -145,11 +139,11 @@ export const DATA = {
       company: "Proactiva",
       href: "https://proactivacr.net",
       badges: [
-        "NextJs"
+        "Fullstack"
       ],
       location: "Remote",
       title: "Full Stack Developer",
-      logoUrl: "/proactiva.png",
+      logoUrl: "/proactiva.webp",
       start: "May 2022",
       end: "Mar 2025",
       description:
@@ -158,8 +152,7 @@ export const DATA = {
     {
       company: "Tiquicia Express",
       badges: [
-        "NextJs",
-        "Google Maps API"
+        "Fullstack",
       ],
       href: "https://tiquiciaexpress.com",
       location: "Remote",
@@ -174,12 +167,12 @@ export const DATA = {
   ],
   education: [
     {
-      school: "University of Costa Rica",
+      school: "Universidad de Costa Rica",
       href: "https://ucr.ac.cr",
       degree: "Bachelor's Degree of Software Engineering",
       logoUrl: "/ucr.png",
-      start: "2023",
-      end: "2024",
+      start: "2022",
+      end: "2026",
     },
   ],
   projects: [
