@@ -177,19 +177,41 @@ export const DATA = {
   ],
   projects: [
     {
+      title: "Volunta UCR",
+      href: "https://volunta.ucr.ac.cr",
+      dates: "2026",
+      active: true,
+      description:
+        "Volunta is the official UCR platform for the volunteering program. They needed a **completely new system** because the previous one was outdated (dating back to 2007). The **primary challenge** was to **provide** a user-friendly experience and **build a comprehensive reporting system**. I built a project management system **that provided admins with** a way to create and manage projects and their respective groups, which served as the MVP **before starting to build all** the reporting features. For this project, I worked with background **queues** and **cron jobs** that ran scheduled tasks to generate reports on project performance and measure the program's social impact across different areas. **After completing** the system, students noted that the new platform was much better than the old one, and the administrative team now has **full visibility over all operations** thanks to the new dashboard and reporting tools.",
+      technologies: [
+        ".NET",
+        "Oracle DB",
+        "Blazor",
+      ],
+      links: [
+        {
+          type: "Website",
+          href: "https://volunta.ucr.ac.cr",
+          icon: <Icons.globe className="size-3" />,
+        },
+  
+      ],
+      image: "/volunta.png",
+      video: "",
+    },
+    {
       title: "Proactiva",
       href: "https://proactivacr.net",
       dates: "Jan 2024 - Feb 2024",
       active: true,
       description:
-        "Designed and developed a web and mobile application for user registration and appointment management.",
+        "Proactiva is a special project for me—it was my first real-world system. Proactiva is a gym that offers classes to its customers. The problem they had was that all their **management was done on a whiteboard**, so as the **number of customers started to grow, logistics** became a disaster. To solve this, I created a **core system** where staff could create a class (like Zumba) and customers could book it. Later, I added features like **record management**, recurring activities, and user roles (such as trainer and admin). Before the system, **several trainers** were involved in **administrative** tasks; after implementation, **a single person** was able to **manage everything**. This project was my **first approach** to concurrency problems—since classes had limited capacity—and **it was also** my first non-personal project.",
       technologies: [
         "Next.js",
         "Typescript",
+        "ExpressJS",
         "MySQL",
         "TailwindCSS",
-        "Shadcn UI",
-        "Magic UI",
       ],
       links: [
         {
@@ -202,37 +224,14 @@ export const DATA = {
       video:
         "",
     },
+    
     {
-      title: "Tiquicia Express",
-      href: "https://tiquiciaexpress.com",
-      dates: "June 2022 - Present",
-      active: true,
-      description:
-        "Developed a package delivery management system with real-time order tracking and an intuitive user interface for administrators and clients.",
-      technologies: [
-        "Next.js",
-        "Typescript",
-        "MySQL",
-        "Google Maps API",
-      ],
-      links: [
-        {
-          type: "Website",
-          href: "https://tiquiciaexpress.com",
-          icon: <Icons.globe className="size-3" />,
-        },
-  
-      ],
-      image: "/te-dash.png",
-      video: "",
-    },
-    {
-      title: "Speedtech",
-      href: "https://speedtechcr.com",
+      title: "Biomímesis",
+      href: "https://biomimesiscr.net",
       dates: "April 2023 - September 2025",
       active: true,
       description:
-        "Built an e-commerce platform for selling automotive ECUs, including online payment systems, order management, and an admin dashboard.",
+        "Biomimesis (CICIMA - Universidad de Costa Rica) **is one of the most creative projects I have been involved in**. BiomimesisCR is a collective of people **who share** biological data. They needed a digital platform made up of a couple of tools (Webpage, Biofonía, and Códice Alado) where they could share their work. To address this, I **built a digital ecosystem** to present complex data in an engaging way. Making technical information accessible and interesting to non-technical users was one of the main challenges, so the solution was to **gamify the platform and draw inspiration from biological elements** for the system's design. I implemented tools to visualize data in an interactive way, along with an admin panel to manage content. After completing the project, the Biomimesis collective had a much stronger platform to showcase their impact to the world.",
       technologies: [
         "React",
         "Typescript",
@@ -242,66 +241,47 @@ export const DATA = {
       ],
       links: [
         {
-          type: "Website",
-          href: "https://speedtechcr.com",
+          type: "Biomímesis",
+          href: "https://biomimesiscr.net",
+          icon: <Icons.globe className="size-3" />,
+        },
+        {
+          type: "Códice alado",
+          href: "https://codicealado.biomimesiscr.net",
+          icon: <Icons.globe className="size-3" />,
+        },
+        {
+          type: "Biofonía",
+          href: "https://biofonía.biomimesiscr.net",
           icon: <Icons.globe className="size-3" />,
         },
       ],
-      image: "/st-dash.png",
+      image: "/biomimesis.png",
       video: "",
     },
     {
-      title: "Letter Jackets Envelopes",
-      href: "https://letterjacketenvelopes.com/",
-      dates: "Mar 2025",
+      title: "Delivo",
+      href: "https://appdelivo.com/",
+      dates: "Mar 2026",
       active: true,
       description:
-        "Help on Woocomerce theme migration",
+        "Delivo was born out of a family need. My uncles run a dairy business that sells products like cheese and milk, among others, to local markets in Guanacaste, Costa Rica. When I was on vacation, I used to help them with product deliveries. One day, I noticed that my uncle frequently backtracked and drove through the same routes multiple times. Moreover, whenever we arrived at a client's address, he had to search through a notebook to find the order details and invoice. To solve this, I built an application that allows businesses to manage clients, products, orders, and delivery routes. The routes can be optimized so that drivers follow the most efficient path to each location. As a result, my uncles saved both time and money by reducing fuel consumption and eliminating manual paper-based tracking.",
       technologies: [
-        "PHP",
-        "Woocomerce",
+        "React Native",
+        "ExpressJS",
+        "Google Cloud",
       ],
       links: [
         {
           type: "Website",
-          href: "https://letterjacketenvelopes.com/",
+          href: "https://appdelivo.com/",
           icon: <Icons.globe className="size-3" />,
         },
       ],
-      image: "/lj-dash.png",
+      image: "/delivo.png",
       video:
         "",
-    },
-    {
-      title: "My Toon Tools",
-      href: "https://mytoontools.com",
-      dates: "November 2025",
-      active: true,
-      description:
-        "Professional suite of TOON converters. Transform JSON and more into token-efficient format that reduces LLM costs by up to 70%.",
-      technologies: [
-        "Next.js",
-        "Typescript",
-        "PostgreSQL",
-        "Prisma",
-        "TailwindCSS",
-      ],
-      links: [
-        {
-          type: "Website",
-          href: "https://mytoontools.com",
-          icon: <Icons.globe className="size-3" />,
-        },
-         {
-          type: "source",
-          href: "https://github.com/MyToonTools",
-          icon: <Icons.github className="size-3" />,
-        },
-      ],
-      image: "/mtt-dash.png",
-      video:
-        "",
-    },
+    }
   ],
   hackathons: [
     {
