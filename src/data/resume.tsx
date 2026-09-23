@@ -8,7 +8,7 @@ export const DATA = {
   location: "San José, CR",
   locationLink: "https://maps.app.goo.gl/b8aC2BnE5NnrYREs9",
   description:
-    "I’m a Fullstack Software Engineer who loves get in trouble (to solve them). I enjoy exploring crazy ideas, learning new things on demand, and yes, I’m a big Formula 1 fan.",
+    "I'm a Fullstack Software Engineer who loves getting into trouble (and then solving it). I enjoy exploring crazy ideas, learning new things on demand, and yes, I'm a big Formula 1 fan.",
   summary:
     "My journey into tech started back in 2019—yes, during the pandemic—when I was stuck at home with way too much free time. One random YouTube video about building websites popped up, and that was it. Something clicked. I’ve always been self-taught and endlessly curious, so diving into the world of software felt natural. In 2022, I officially began my Software Engineering degree at the University of Costa Rica, where I’m now in my final year. But I never limited myself to what’s taught in the classroom. Along the way, I’ve built freelance projects, developed platforms for research centers at the university, and even created an app for a social impact initiative. Each project has pushed me to grow, explore bold ideas, and build software that actually matters.",
   avatarUrl: "/me.jpeg",
@@ -17,11 +17,11 @@ export const DATA = {
       "React",
       "Typescript",
       "React Native",
-      'Express',
+      "Express",
       ".NET Core",
       "MySQL",
       "Docker",
-     ],
+    ],
     frontend: [
       "React",
       "Next.js",
@@ -32,11 +32,7 @@ export const DATA = {
       "HTML",
       "CSS",
     ],
-    backend: [
-      "Express.js",
-      "Nest.js",
-      ".NET Core",
-    ],
+    backend: ["Express.js", "Nest.js", ".NET Core"],
     devops: [
       "Docker",
       "Coolify",
@@ -53,28 +49,7 @@ export const DATA = {
       "Redis",
       "Prisma ORM",
     ],
-    softwareEngineering: [
-      "Clean Architecture",
-      "SOLID Principles",
-      "TDD",
-      "Agile Methodologies",
-      "Scrum",
-      "Kanban",
-    ],
-    productivity: [
-      "Notion",
-      "Slack",
-      "Trello",
-      "Jira",
-      "Figma",
-      "VS Code",
-      "Postman",
-    ],
-    AI: [
-      "Codex",
-      "N8N",
-      "Claude Code"
-    ],
+    AI: ["Codex", "N8N", "Claude Code"],
   },
   navbar: [
     { href: "/", icon: HomeIcon, label: "Home" },
@@ -123,40 +98,64 @@ export const DATA = {
 
   work: [
     {
-      company: "Proactiva",
-      href: "https://proactivacr.net",
-      badges: [
-        "Fullstack"
-      ],
+      company: "UCR — VIVE (Volunta UCR)",
+      badges: ["Part-time"],
+      href: "https://volunta.ucr.ac.cr",
       location: "Remote",
-      title: "Full Stack Developer",
-      logoUrl: "/proactiva.webp",
-      start: "May 2022",
-      end: "Mar 2025",
-      description:
-        "Implemented a full Gym management platform using NextJs, TailwindCSS, Node.js and MySQL. The platform includes features such as member management, class scheduling and reporting. Integrated third-party services such as  Resend for email notifications.",
+      title: "Student Software Developer",
+      logoUrl: "/ucr.png",
+      start: "Jan 2026",
+      end: "Present",
+      description: `Rebuilt Volunta, UCR's official volunteering platform, from scratch — replacing a legacy system in use since 2007 — using .NET, Blazor, and Oracle DB.
+        Delivered project and group management for administrators as the MVP, then built a reporting module powered by background queues and cron jobs to measure the program's social impact.
+        Gave the admin team full operational visibility through real-time dashboards; the platform serves 200+ students per month across 10 volunteering projects.`,
+    },
+    {
+      company: "UCR — CICIMA (Biomímesis)",
+      badges: ["Part-time"],
+      href: "https://volunta.ucr.ac.cr",
+      location: "Remote",
+      title: "Student Software Developer",
+      logoUrl: "/ucr.png",
+      start: "Mar 2024",
+      end: "Dec 2025",
+      description: `Built the digital ecosystem for Biomímesis, a research collective, as three connected products: the main site, Códice Alado, and Biofonía.
+         Designed gamified, nature-inspired interfaces and interactive data visualizations that make scientific biological data accessible to non-technical audiences.
+        Developed an admin panel so researchers can publish and manage content without developer support.`,
     },
     {
       company: "Tiquicia Express",
-      badges: [
-        "Fullstack",
-      ],
+      badges: ["Freelance"],
       href: "https://tiquiciaexpress.com",
       location: "Remote",
       title: "Full Stack Developer",
       logoUrl: "/TE.png",
-      start: "Mar 2022",
-      end: "Jan 2025",
-      description:
-        "Developed a package delivery management system with real-time order tracking and an intuitive user interface for administrators and clients. Built using React, Node.js, and MySQL, the platform streamlined operations and improved customer satisfaction through efficient package handling and delivery processes.",
+      start: "Mar 2023",
+      end: "Nov 2025",
+      description: `Built a US-to-Costa Rica package forwarding platform end to end: customer sign-up with automatic US mailbox assignment, package prealerts, shipment tracking, and a shipping cost calculator.
+        The platform has processed 13,000+ packages (33,000+ lbs) for 1,400+ registered users.
+        Developed the customer portal and back-office tools used to receive and process packages.
+`,
     },
-
+    {
+      company: "Proactiva",
+      href: "https://proactivacr.net",
+      badges: ["Freelance", "Maintenance"],
+      location: "Remote",
+      title: "Full Stack Developer",
+      logoUrl: "/proactiva.webp",
+      start: "May 2022",
+      end: "Present",
+      description: `Replaced a gym's whiteboard-based operations with a web platform for class scheduling, member management, recurring activities, and role-based access (admin, trainer).
+        Handled concurrent bookings for limited-capacity classes to prevent overbooking, and integrated Resend for automated email notifications.
+        Reduced administrative workload from several trainers to a single person; maintaining the system in production since 2022.`,
+    },
   ],
   education: [
     {
       school: "Universidad de Costa Rica",
       href: "https://ucr.ac.cr",
-      degree: "Bachelor's Degree of Software Engineering",
+      degree: "Bachelor's Degree in Software Engineering",
       logoUrl: "/ucr.png",
       start: "2022",
       end: "2026",
@@ -170,18 +169,13 @@ export const DATA = {
       active: true,
       description:
         "Volunta is the official UCR platform for the volunteering program. They needed a **completely new system** because the previous one was outdated (dating back to 2007). The **primary challenge** was to **provide** a user-friendly experience and **build a comprehensive reporting system**. I built a project management system **that provided admins with** a way to create and manage projects and their respective groups, which served as the MVP **before starting to build all** the reporting features. For this project, I worked with background **queues** and **cron jobs** that ran scheduled tasks to generate reports on project performance and measure the program's social impact across different areas. **After completing** the system, students noted that the new platform was much better than the old one, and the administrative team now has **full visibility over all operations** thanks to the new dashboard and reporting tools.",
-      technologies: [
-        ".NET",
-        "Oracle DB",
-        "Blazor",
-      ],
+      technologies: [".NET", "Oracle DB", "Blazor"],
       links: [
         {
           type: "Website",
           href: "https://volunta.ucr.ac.cr",
           icon: <Icons.globe className="size-3" />,
         },
-  
       ],
       image: "/volunta.png",
       video: "",
@@ -208,10 +202,9 @@ export const DATA = {
         },
       ],
       image: "/proac-dash.png",
-      video:
-        "",
+      video: "",
     },
-    
+
     {
       title: "Biomímesis",
       href: "https://biomimesiscr.net",
@@ -219,27 +212,21 @@ export const DATA = {
       active: true,
       description:
         "Biomimesis (CICIMA - Universidad de Costa Rica) **is one of the most creative projects I have been involved in**. BiomimesisCR is a collective of people **who share** biological data. They needed a digital platform made up of a couple of tools (Webpage, Biofonía, and Códice Alado) where they could share their work. To address this, I **built a digital ecosystem** to present complex data in an engaging way. Making technical information accessible and interesting to non-technical users was one of the main challenges, so the solution was to **gamify the platform and draw inspiration from biological elements** for the system's design. I implemented tools to visualize data in an interactive way, along with an admin panel to manage content. After completing the project, the Biomimesis collective had a much stronger platform to showcase their impact to the world.",
-      technologies: [
-        "React",
-        "Typescript",
-        "MySQL",
-        "Prisma",
-        "TailwindCSS",
-      ],
+      technologies: ["React", "Typescript", "MySQL", "Prisma", "TailwindCSS"],
       links: [
         {
           type: "Biomímesis",
-          href: "https://biomimesiscr.net",
+          href: "https://biomimesiscr.org",
           icon: <Icons.globe className="size-3" />,
         },
         {
           type: "Códice alado",
-          href: "https://codicealado.biomimesiscr.net",
+          href: "https://codicealado.biomimesiscr.org",
           icon: <Icons.globe className="size-3" />,
         },
         {
           type: "Biofonía",
-          href: "https://biofonía.biomimesiscr.net",
+          href: "https://biofonia.biomimesiscr.org",
           icon: <Icons.globe className="size-3" />,
         },
       ],
@@ -253,11 +240,7 @@ export const DATA = {
       active: true,
       description:
         "Delivo was born out of a family need. My uncles run a dairy business that sells products like cheese and milk, among others, to local markets in Guanacaste, Costa Rica. When I was on vacation, I used to help them with product deliveries. One day, I noticed that my uncle frequently backtracked and drove through the same routes multiple times. Moreover, whenever we arrived at a client's address, he had to search through a notebook to find the order details and invoice. To solve this, I built an application that allows businesses to manage clients, products, orders, and delivery routes. The routes can be optimized so that drivers follow the most efficient path to each location. As a result, my uncles saved both time and money by reducing fuel consumption and eliminating manual paper-based tracking.",
-      technologies: [
-        "React Native",
-        "ExpressJS",
-        "Google Cloud",
-      ],
+      technologies: ["React Native", "ExpressJS", "Google Cloud"],
       links: [
         {
           type: "Website",
@@ -266,9 +249,8 @@ export const DATA = {
         },
       ],
       image: "/delivo.png",
-      video:
-        "",
-    }
+      video: "",
+    },
   ],
   // `className` controls the bento layout (column/row spans).
   activities: [
@@ -278,7 +260,7 @@ export const DATA = {
       image: "/other-activities/biomimesis_presentation.png",
       className: "row-span-2",
     },
-     {
+    {
       title: "Volunteering",
       description: "Giving back to my community.",
       image: "/other-activities/volunteering.webp",
@@ -297,7 +279,5 @@ export const DATA = {
       className: "",
     },
   ],
-  hackathons: [
-  
-  ],
+  hackathons: [],
 } as const;
