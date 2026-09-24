@@ -6,7 +6,9 @@ import BlurFadeText from "@/components/magicui/blur-fade-text";
 import { ProjectShowcase } from "@/components/project-showcase";
 import { ResumeCard } from "@/components/resume-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { DATA } from "@/data/resume";
+import { Download, Mail } from "lucide-react";
 import Link from "next/link";
 import Markdown from "react-markdown";
 
@@ -30,6 +32,14 @@ export default function Page() {
                 delay={BLUR_FADE_DELAY}
                 text={DATA.description}
               />
+              <BlurFade delay={BLUR_FADE_DELAY * 2}>
+                <Button asChild size="sm" className="w-fit gap-2">
+                  <a href="/Aaron_Santana_CV.pdf" download>
+                    <Download className="size-4" />
+                    Download CV
+                  </a>
+                </Button>
+              </BlurFade>
             </div>
             <BlurFade delay={BLUR_FADE_DELAY}>
               <Avatar className="size-28 border">
@@ -168,6 +178,15 @@ export default function Page() {
                   with a direct question on Linkedin
                 </Link>{" "}
               </p>
+              <p className="text-muted-foreground">
+                santanavaldelomaraa@gmail.com
+              </p>
+              <Button asChild size="sm" className="gap-2">
+                <a href="mailto:santanavaldelomaraa@gmail.com">
+                  <Mail className="size-4" />
+                  Send me an email
+                </a>
+              </Button>
             </div>
           </BlurFade>
         </div>

@@ -15,12 +15,12 @@ export default function Skills() {
   const skills = DATA.skills[currentSkillType];
 
   return (
-    <section id="skills" className='mt-12'>
-        <div className="flex min-h-0 flex-col gap-y-3 mt-8">
+    <section id="skills" className='mt-24 md:mt-12'>
+        <div className="flex min-h-0 flex-col gap-y-3 mt-12 md:mt-8">
           <BlurFade delay={BLUR_FADE_DELAY * 9}>
             <h2 className="text-xl font-bold">Skills</h2>
           </BlurFade>
-          <div className="flex space-x-2 mb-2">
+          <div className="flex flex-wrap gap-2 mb-2">
             {Object.keys(DATA.skills).map((skillType) => (
               <button
                 key={skillType}
